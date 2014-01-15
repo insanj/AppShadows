@@ -5,6 +5,7 @@ ARCHS = armv7 arm64
 TWEAK_NAME = AppShadows
 AppShadows_FILES = Tweak.xm
 AppShadows_FRAMEWORKS = UIKit
+AppShadows_CFLAGS = -fobjc-arc
 
 include theos/makefiles/common.mk
 include $(THEOS_MAKE_PATH)/tweak.mk
