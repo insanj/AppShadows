@@ -17,50 +17,38 @@
 @interface SBUserInstalledApplicationIcon : SBApplicationIcon
 @end
 
+@interface SBIconViewMap
+-(id)mappedIconViewForIcon:(id)icon;
+@end
+
+@interface SBIconImageView : UIImageView
+@end
+
+@interface SBFolderIconImageView : SBIconImageView
+@end
+
 @interface SBIconView : UIView
 +(CGSize)defaultIconSize;
 -(CGRect)iconImageFrame;
 -(id)_iconImageView;
 @end
 
-@interface SBIconViewMap
--(id)mappedIconViewForIcon:(id)icon;
-@end
-
-@interface SBIconViewMap (AppShadows)
+@interface SBIconView (AppShadows)
 -(UIView *)addShadowToView:(UIView *)view;
--(UIImage *)addShadowToImage:(UIImage *)image;
+-(SBFolderIconImageView *)addShadowToImageView:(SBFolderIconImageView *)imageView;
 @end
-
-/************************** Categorized Classes **************************/
-
-@interface NSObject (AppShadows)
--(int)shadowed;
--(void)interateShadowed;
-@end
-
-%hook NSObject
-static void * const kShadowedStorageKey = (void*)&kShadowedStorageKey; 
-
-%new -(int)shadowed{
-	return [objc_getAssociatedObject(self, kShadowedStorageKey) intValue];
-}
-
-%new -(void)interateShadowed{
-	int curr = [objc_getAssociatedObject(self, kShadowedStorageKey) intValue];
-	objc_setAssociatedObject(self, kShadowedStorageKey, @(++curr), OBJC_ASSOCIATION_RETAIN_NONATOMIC);
-}
-%end
 
 /************************** Main %hook for Apps **************************/
 
-%hook SBIconViewMap
+%hook SBIconView
+-(CGRect)iconImageFrame{
+	CGRect expanded = %orig();
+	expanded.size.height += 50.f;
+	return expanded;
+}
 
--(id)mappedIconViewForIcon:(SBApplicationIcon *)icon{
-	if(icon != nil)
-		return [self addShadowToView:%orig()];
-
-	return %orig();
+-(SBFolderIconImageView *)_iconImageView{
+	return [self addShadowToImageView:%orig()];
 }
 
 %new -(UIView *)addShadowToView:(UIView *)view{
@@ -76,18 +64,18 @@ static void * const kShadowedStorageKey = (void*)&kShadowedStorageKey;
 	return holder;
 }
 
-%new -(UIImage *)addShadowToImage:(UIImage *)image{
+%new -(UIImageView *)addShadowToImageView:(UIImageView *)imageView{
 	UIImage *shadow = [UIImage kitImageNamed:@"AppShadow.png"];
 
-	UIGraphicsBeginImageContext(CGSizeMake(image.size.width, image.size.height + shadow.size.height + SHADOW_PADDING));
+	UIGraphicsBeginImageContext(CGSizeMake(imageView.frame.size.width, imageView.frame.size.height + shadow.size.height + SHADOW_PADDING));
 
-	[image drawInRect:CGRectMake(0, 0, image.size.width, image.size.height)];
-	[shadow drawInRect:CGRectMake(0, image.size.height + SHADOW_PADDING, shadow.size.width, shadow.size.height) blendMode:kCGBlendModeNormal alpha:1.0];
+	[imageView.image drawInRect:CGRectMake(0, 0, imageView.frame.size.width, imageView.frame.size.height)];
+	[shadow drawInRect:CGRectMake(0, imageView.frame.size.height + SHADOW_PADDING, shadow.size.width, shadow.size.height) blendMode:kCGBlendModeNormal alpha:1.0];
 
 	UIImage *combined = UIGraphicsGetImageFromCurrentImageContext();
 	UIGraphicsEndImageContext();
 
-	return combined;
+	return [[UIImageView alloc] initWithImage:combined];
 }
 
 %end
