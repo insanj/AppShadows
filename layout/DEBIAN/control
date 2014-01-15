@@ -1,0 +1,10 @@
+Package: com.insanj.appshadows
+Name: App Shadows
+Pre-Depends: firmware (>= 7.0)
+Depends: mobilesubstrate 
+Version: 0.1
+Architecture: iphoneos-arm
+Description: Make your apps levitate.
+Maintainer: Julian Weiss <me@insanj.com>
+Author: Julian (insanj) Weiss
+Section: Tweaks
