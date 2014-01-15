@@ -1,4 +1,7 @@
 #import "substrate.h"
+#import <objc/runtime.h>
+#include <stdlib.h>
+
 #define NSStringFromBOOL(given) given?@"YES":@"NO"
 #define SHADOW_PADDING 8.f
 
@@ -8,7 +11,7 @@
 
 /********************* Relevant Forward-Declarations *********************/
 
-@interface SBApplicationIcon
+@interface SBApplicationIcon : NSObject
 @end
 
 @interface SBUserInstalledApplicationIcon : SBApplicationIcon
@@ -31,19 +34,21 @@
 
 /************************** Categorized Classes **************************/
 
-@interface SBApplicationIcon (AppShadows)
--(BOOL)shadowed;
--(void)setShadowed:(BOOL)given;
+@interface NSObject (AppShadows)
+-(int)shadowed;
+-(void)interateShadowed;
 @end
 
-%hook SBApplicationIcon
-BOOL shadowed;
--(BOOL)shadowed{
-	return shadowed;
+%hook NSObject
+static void * const kShadowedStorageKey = (void*)&kShadowedStorageKey; 
+
+%new -(int)shadowed{
+	return [objc_getAssociatedObject(self, kShadowedStorageKey) intValue];
 }
 
--(void)setShadowed:(BOOL)given{
-	shadowed = given;
+%new -(void)interateShadowed{
+	int curr = [objc_getAssociatedObject(self, kShadowedStorageKey) intValue];
+	objc_setAssociatedObject(self, kShadowedStorageKey, @(++curr), OBJC_ASSOCIATION_RETAIN_NONATOMIC);
 }
 %end
 
@@ -52,28 +57,23 @@ BOOL shadowed;
 %hook SBIconViewMap
 
 -(id)mappedIconViewForIcon:(SBApplicationIcon *)icon{
-	NSLog(@"--- trying to shadow:%@", icon);
-	if(icon == nil || [icon shadowed])
-		return %orig();
+	if(icon != nil)
+		return [self addShadowToView:%orig()];
 
-	[icon setShadowed:YES];
-	SBIconView *view = %orig();
-	return [self addShadowToView:view];
+	return %orig();
 }
 
 %new -(UIView *)addShadowToView:(UIView *)view{
 	UIImageView *shadow = [[UIImageView alloc] initWithImage:[UIImage kitImageNamed:@"AppShadow.png"]];
-
 	CGRect expanded = view.frame;
 	expanded.size.height += shadow.frame.size.height + SHADOW_PADDING;
-
-	[view setFrame:expanded];
 	[shadow setFrame:CGRectMake(0.f, view.frame.size.height + SHADOW_PADDING, expanded.size.width, shadow.frame.size.height)];
-	[view addSubview:shadow];
-	
-	NSLog(@"[AppShadows] Finished combining icon view (%@) with shadow (this will probably be one of many, sorry for the log spam!)", view);
 
-	return view;
+	UIView *holder = [[UIView alloc] initWithFrame:expanded];
+	[holder addSubview:view];
+	[holder addSubview:shadow];
+	
+	return holder;
 }
 
 %new -(UIImage *)addShadowToImage:(UIImage *)image{
@@ -86,8 +86,6 @@ BOOL shadowed;
 
 	UIImage *combined = UIGraphicsGetImageFromCurrentImageContext();
 	UIGraphicsEndImageContext();
-
-	NSLog(@"[AppShadows] Finished combining icon image (%@) with shadow (this will probably be one of many, sorry for the log spam!)", image);
 
 	return combined;
 }
