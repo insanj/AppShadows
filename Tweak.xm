@@ -8,12 +8,57 @@
 +(UIImage *)kitImageNamed:(NSString *)name;
 @end
 
-@interface SBIconView : UIView
-+(CGSize)defaultIconSize;
--(CGRect)iconImageFrame;
--(id)_iconImageView;
+@interface SBIconListView : UIView
+-(void)_layoutIcon:(id)icon atIndex:(unsigned)index createViewNow:(BOOL)now pop:(BOOL)pop;
+-(id)icons;
+-(BOOL)isDock;
+-(void)layoutIconsNow;
+-(id)placeIcon:(id)icon atIndex:(unsigned)index moveNow:(BOOL)now pop:(BOOL)pop;
+-(void)removeIcon:(id)icon;
+-(void)removeIconAtIndex:(unsigned)index;
+-(id)viewForIcon:(id)icon;
 @end
 
+@interface SBRootIconListView : SBIconListView
+-(float)bottomIconInset;
+-(float)sideIconInset;
+-(float)topIconInset;
+@end
+
+@interface UIView (AppShadows)
+-(BOOL)shadow;
+@end
+
+%hook UIView
+static char kAppShadowKey;
+%new -(BOOL)shadow{
+	if([objc_getAssociatedObject(self, &kAppShadowKey) boolValue])
+		return YES;
+
+	objc_setAssociatedObject(self, &kAppShadowKey, @(YES), OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+	return NO;
+}
+%end
+
+%hook SBRootIconListView
+-(id)viewForIcon:(id)icon{
+	UIView *o = %orig();
+
+	if(![o shadow]){
+		UIImageView *shadow = [[UIImageView alloc] initWithImage:[UIImage kitImageNamed:@"AppShadow.png"]];
+		[shadow setFrame:CGRectMake(o.frame.origin.x, o.frame.origin.y + o.frame.size.height + SHADOW_PADDING, o.frame.size.width, ceilf(o.frame.size.height / 4.f))];
+
+		CGRect curr = o.frame;
+		curr.size.height += shadow.image.size.height + SHADOW_PADDING;
+		[o setFrame:curr];
+		[o addSubview:shadow];
+	}
+
+	return o;
+}
+%end
+
+/*
 %hook SBIconView
 static char kAppShadowKey;
 
@@ -45,16 +90,5 @@ static char kAppShadowKey;
         objc_setAssociatedObject(self, &kAppShadowKey, shadowString, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
 	}
 }
-/*
--(void)setFrame:(CGRect)frame{
-    UIImageView *shadowView = objc_getAssociatedObject(self, &kAppShadowKey);
 
-    if(shadowView)
-        [shadowView removeFromSuperview];
-    
-    CGRect expanded = frame;
-    expanded.size.height = [self iconImageFrame].size.height + shadowView.image.size.height + SHADOW_PADDING;
-    %orig(expanded);
-}*/
-
-%end
+%end*/
