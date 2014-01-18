@@ -13,36 +13,36 @@
 @end
 
 @interface SBIconView (AppShadows)
--(BOOL)_appShadow_hasShadow;
+-(BOOL)_appShadows_needsShadow;
 @end
 
 static char kAppShadowKey;
 
 %hook SBIconView
--(void)prepareForRecycling {
+-(void)prepareForRecycling{
 	objc_setAssociatedObject(self, &kAppShadowKey, @NO, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
 	%orig();
 }
 
-%new -(BOOL)_appShadow_hasShadow{
+%new -(BOOL)_appShadows_needsShadow{
 	if([objc_getAssociatedObject(self, &kAppShadowKey) boolValue])
-		return YES;
+		return NO;
 
 	objc_setAssociatedObject(self, &kAppShadowKey, @YES, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
-	return NO;
+	return YES;
 }
 %end
 
 %hook SBRootIconListView
--(SBIconView *)viewForIcon:(id)icon {
+-(SBIconView *)viewForIcon:(id)icon{
 	SBIconView *iconView = %orig();
 
-	if(![iconView _appShadow_hasShadow]){
+	if([iconView _appShadows_needsShadow]){
 		UIView *containerView = iconView._iconImageView.superview;
 		CGRect frame = containerView.frame;
 
 		UIImageView *shadowView = [[UIImageView alloc] initWithImage:[UIImage kitImageNamed:@"AppShadow.png"]];
-		[shadowView setFrame:CGRectMake(0, iconView._iconImageView.frame.size.height - SHADOW_PADDING, frame.size.width, shadowView.frame.size.height)];
+		[shadowView setFrame:CGRectMake(0.f, iconView._iconImageView.frame.size.height + SHADOW_PADDING, frame.size.width, shadowView.frame.size.height)];
 		[containerView insertSubview:shadowView belowSubview:iconView._iconImageView];
 	}
 
